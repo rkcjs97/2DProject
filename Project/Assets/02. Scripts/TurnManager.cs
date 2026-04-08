@@ -2,6 +2,13 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+public enum TurnPhase
+{
+    Movement,
+    Combat,
+    End
+}
+
 public class TurnManager : MonoBehaviour
 {
     [Header("Turn State")]

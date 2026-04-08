@@ -10,9 +10,6 @@ public class UnitMoveManager : MonoBehaviour
     [SerializeField] private LayerMask unitLayerMask;
     [SerializeField] private UnitSelectionManager unitSelectionManager;
 
-    private GameFlowService gameFlowService;
-    private CommandContext commandContext;
-
     private void Awake()
     {
         if (mainCamera == null)
@@ -20,9 +17,6 @@ public class UnitMoveManager : MonoBehaviour
 
         if (unitSelectionManager == null)
             unitSelectionManager = FindObjectOfType<UnitSelectionManager>();
-
-        gameFlowService = new GameFlowService();
-        commandContext = new CommandContext(turnManager: null, combatService: new CombatService());
     }
 
     private void Update()
@@ -74,15 +68,16 @@ public class UnitMoveManager : MonoBehaviour
             return;
         }
 
-        // 4. 이동 명령 실행
+        // 4. 이동
+        if (!unitSelectionManager.SelectedUnit.CanMove())
+        {
+            Debug.Log("이동 횟수를 모두 소진했습니다.");
+            return;
+        }
+
         Vector3 targetPos = moveTilemap.CellToWorld(clickedCell);
         targetPos.z = 0f;
-
-        MoveCommand moveCommand = new MoveCommand(unitSelectionManager.SelectedUnit, targetPos);
-        CommandResult result = gameFlowService.Execute(moveCommand, commandContext);
-
-        if (!result.Success)
-            Debug.Log(result.Message);
+        unitSelectionManager.SelectedUnit.SetMoveTarget(targetPos);
     }
 
     private void HandleUnitClick(Unit clickedUnit)
@@ -107,10 +102,15 @@ public class UnitMoveManager : MonoBehaviour
             return;
         }
 
-        AttackCommand attackCommand = new AttackCommand(selected, clickedUnit);
-        CommandResult result = gameFlowService.Execute(attackCommand, commandContext);
+        MeleeAttack attack = selected.GetComponent<MeleeAttack>();
+        if (attack == null)
+        {
+            Debug.Log("선택된 유닛은 공격 기능이 없습니다.");
+            return;
+        }
 
-        if (!result.Success)
-            Debug.Log(result.Message);
+        bool attacked = attack.TryAttack(clickedUnit);
+        if (!attacked)
+            Debug.Log("공격 조건을 만족하지 않습니다.");
     }
 }
