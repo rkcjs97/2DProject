@@ -2,11 +2,20 @@ using UnityEngine;
 
 public class Melee : Unit
 {
-    public int DefenseBonus { get; protected set; }
+    [Header("Melee")]
+    [SerializeField] private int defenseBonus = 0;
+    [SerializeField] private int meleeAttackBonus = 0;
 
-    protected Melee(int hp, int cost, int strength, int movePoint, string unitName, int defenseBonus)
-        : base(hp, cost, strength, movePoint, unitName)
+    public int DefenseBonus => defenseBonus;
+
+    public override int GetAttackDamage()
     {
-        DefenseBonus = defenseBonus;
+        return Mathf.Max(0, base.GetAttackDamage() + meleeAttackBonus);
+    }
+
+    public override void TakeDamage(int damage)
+    {
+        int reducedDamage = Mathf.Max(0, damage - defenseBonus);
+        base.TakeDamage(reducedDamage);
     }
 }
