@@ -3,7 +3,7 @@ using UnityEngine;
 [RequireComponent(typeof(Unit))]
 public class MeleeAttack : MonoBehaviour
 {
-    [SerializeField] private int damage = 30;
+    [SerializeField] private int bonusDamage = 0;
     [SerializeField] private float attackRange = 1.1f;
     [SerializeField] private int attackCost = 1;
 
@@ -41,10 +41,11 @@ public class MeleeAttack : MonoBehaviour
             return false;
         }
 
+        int damage = Mathf.Max(0, owner.GetAttackDamage() + bonusDamage);
         target.TakeDamage(damage);
         owner.ConsumeMovePoint(attackCost);
 
-        Debug.Log($"{owner.name} -> {target.name} 근접 공격 성공");
+        Debug.Log($"{owner.unitName} -> {target.unitName} 근접 공격 성공 ({damage})");
         return true;
     }
 }

@@ -1,17 +1,36 @@
 using UnityEngine;
 
+[System.Serializable]
+public struct UnitStats
+{
+    public string unitName;
+    public int maxHp;
+    public int cost;
+    public int strength;
+    public int movePoint;
+
+    public UnitStats(string unitName, int maxHp, int cost, int strength, int movePoint)
+    {
+        this.unitName = unitName;
+        this.maxHp = maxHp;
+        this.cost = cost;
+        this.strength = strength;
+        this.movePoint = movePoint;
+    }
+}
+
 public class Unit : MonoBehaviour
 {
-    [Header("Selection Visual")]
+    [Header("Selection")]
     [SerializeField] private GameObject selectedIndicator;
 
-    [Header("Core Stats")]
-    [SerializeField] private string defaultUnitName = "Unit";
-    [SerializeField] private int defaultTeamId = 0;
-    [SerializeField] private int defaultHp = 100;
-    [SerializeField] private int defaultCost = 40;
-    [SerializeField] private int defaultStrength = 10;
-    [SerializeField] private int defaultMovePoint = 2;
+    [Header("Team / Movement")]
+    [SerializeField] private int teamId = 0;
+    [SerializeField] private float moveSpeed = 5f;
+
+    [Header("Optional Override Stats")]
+    [SerializeField] private bool useOverrideStats;
+    [SerializeField] private UnitStats overrideStats = new UnitStats("Unit", 100, 40, 10, 2);
 
     public int hp { get; protected set; }
     public int cost { get; protected set; }
@@ -20,28 +39,34 @@ public class Unit : MonoBehaviour
     public int currentMovePoint { get; protected set; }
     public string unitName { get; protected set; }
 
-    public int TeamId => defaultTeamId;
-    public float moveSpeed = 5f;
+    public int TeamId => teamId;
 
     private Vector3 targetPosition;
     private bool isMoving;
 
-    protected virtual void Awake()
+    protected virtual UnitStats GetBaseStats()
     {
-        hp = defaultHp;
-        cost = defaultCost;
-        strength = defaultStrength;
-        movePoint = defaultMovePoint;
-        unitName = defaultUnitName;
+        return new UnitStats("Unit", 100, 40, 10, 2);
     }
 
-    public void Start()
+    protected virtual void Awake()
+    {
+        UnitStats finalStats = useOverrideStats ? overrideStats : GetBaseStats();
+
+        unitName = finalStats.unitName;
+        hp = Mathf.Max(1, finalStats.maxHp);
+        cost = Mathf.Max(0, finalStats.cost);
+        strength = Mathf.Max(0, finalStats.strength);
+        movePoint = Mathf.Max(0, finalStats.movePoint);
+    }
+
+    private void Start()
     {
         currentMovePoint = movePoint;
         targetPosition = transform.position;
     }
 
-    public void Update()
+    private void Update()
     {
         MoveToTarget();
     }
@@ -66,20 +91,6 @@ public class Unit : MonoBehaviour
             selectedIndicator.SetActive(isSelected);
     }
 
-    private void MoveToTarget()
-    {
-        if (!isMoving)
-            return;
-
-        transform.position = Vector3.MoveTowards(transform.position, targetPosition, moveSpeed * Time.deltaTime);
-
-        if (Vector3.Distance(transform.position, targetPosition) < 0.01f)
-        {
-            transform.position = targetPosition;
-            isMoving = false;
-        }
-    }
-
     public bool CanMove()
     {
         return currentMovePoint > 0 && !isMoving && hp > 0;
@@ -95,7 +106,12 @@ public class Unit : MonoBehaviour
         currentMovePoint = Mathf.Max(0, currentMovePoint - amount);
     }
 
-    public void TakeDamage(int damage)
+    public virtual int GetAttackDamage()
+    {
+        return strength;
+    }
+
+    public virtual void TakeDamage(int damage)
     {
         if (hp <= 0)
             return;
@@ -107,18 +123,28 @@ public class Unit : MonoBehaviour
             Die();
     }
 
+    public void ResetMove()
+    {
+        currentMovePoint = movePoint;
+    }
+
+    private void MoveToTarget()
+    {
+        if (!isMoving)
+            return;
+
+        transform.position = Vector3.MoveTowards(transform.position, targetPosition, moveSpeed * Time.deltaTime);
+
+        if (Vector3.Distance(transform.position, targetPosition) < 0.01f)
+        {
+            transform.position = targetPosition;
+            isMoving = false;
+        }
+    }
+
     private void Die()
     {
         Debug.Log($"{unitName} 유닛이 제거되었습니다.");
         Destroy(gameObject);
     }
-
-    public void ResetMove()
-    {
-        currentMovePoint = movePoint;
-    }
-}
-
-public class Swordsman : Melee
-{
 }
