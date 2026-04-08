@@ -5,7 +5,7 @@ using UnityEngine.InputSystem.Controls;
 
 public class StateMachine : MonoBehaviour
 {
-    enum GameState
+    private enum GameState
     {
         Title,
         City,
@@ -15,7 +15,7 @@ public class StateMachine : MonoBehaviour
         Production
     }
 
-    enum Command
+    private enum Command
     {
         // Title
         Start,
@@ -39,19 +39,18 @@ public class StateMachine : MonoBehaviour
         Move
     }
 
-    [Header("Ref")]
-    [SerializeField] public TurnManager turnManager;
-
-    [Header("Space로 다음턴")]
-    [SerializeField] private Key nextTurnKey = Key.Space;
+    [Header("References")]
+    [SerializeField] private TurnManager turnManager;
     [SerializeField] private ProductionManager production;
+
+    [Header("Input")]
+    [SerializeField] private Key nextTurnKey = Key.Space;
 
     private GameState state = GameState.Title;
     private readonly List<string> logs = new List<string>();
 
-    public int turnCost;
-    private string uname;
-    private Command cmd;
+    private int turnCost;
+    private string selectedUnitName;
 
     private void Awake()
     {
@@ -74,104 +73,258 @@ public class StateMachine : MonoBehaviour
             turnManager.OnTurnChanged -= HandleTurnChanged;
     }
 
-    void Start()
+    private void Start()
     {
-        Debug.Log("=== 게임 시작 ===");
+        Log("=== 게임 시작 ===");
         PrintHelp();
     }
 
-    void Update()
+    private void Update()
     {
         if (Keyboard.current == null)
             return;
 
-        // Title
-        if (IsPressed(Key.S))
+        HandleBackCommand();
+        HandleStateInput();
+    }
+
+    private void HandleBackCommand()
+    {
+        if (IsPressed(Key.B))
+            ProcessCommand(Command.Back);
+    }
+
+    private void HandleStateInput()
+    {
+        switch (state)
         {
-            cmd = Command.Start;
-            ProcessCommand(cmd);
+            case GameState.Title:
+                HandleTitleInput();
+                break;
+            case GameState.InGame:
+                HandleInGameInput();
+                break;
+            case GameState.City:
+                HandleCityInput();
+                break;
+            case GameState.Buy:
+                HandleBuyInput();
+                break;
+            case GameState.Production:
+                HandleProductionInput();
+                break;
+            case GameState.Unit:
+                HandleUnitInput();
+                break;
         }
+    }
+
+    private void HandleTitleInput()
+    {
+        if (IsPressed(Key.S))
+            ProcessCommand(Command.Start);
 
         if (IsPressed(Key.Q))
-        {
-            cmd = Command.Quit;
-            ProcessCommand(cmd);
-        }
+            ProcessCommand(Command.Quit);
+    }
 
-        // InGame
+    private void HandleInGameInput()
+    {
         if (IsPressed(nextTurnKey))
-        {
-            cmd = Command.NextTurn;
-            ProcessCommand(cmd);
-        }
+            ProcessCommand(Command.NextTurn);
 
         if (IsPressed(Key.I))
-        {
-            cmd = Command.GoCity;
-            ProcessCommand(cmd);
-        }
+            ProcessCommand(Command.GoCity);
 
         if (IsPressed(Key.U))
-        {
-            cmd = Command.GoUnit;
-            ProcessCommand(cmd);
-        }
+            ProcessCommand(Command.GoUnit);
+    }
 
-        // City
+    private void HandleCityInput()
+    {
         if (IsPressed(Key.G))
-        {
-            cmd = Command.GoBuy;
-            ProcessCommand(cmd);
-        }
+            ProcessCommand(Command.GoBuy);
 
         if (IsPressed(Key.P))
-        {
-            cmd = Command.GoProduction;
-            ProcessCommand(cmd);
-        }
+            ProcessCommand(Command.GoProduction);
+    }
 
-        // Buy / Production number key routing
-        if (IsPressed(Key.Digit1))
-            HandleNumberSelection(0);
+    private void HandleBuyInput()
+    {
+        HandleNumberSelection(Command.Buy);
 
-        if (IsPressed(Key.Digit2))
-            HandleNumberSelection(1);
-
-        // Undo
         if (IsPressed(Key.Z))
-        {
-            cmd = Command.Undo;
-            ProcessCommand(cmd);
-        }
+            ProcessCommand(Command.Undo);
+    }
 
-        // Unit
+    private void HandleProductionInput()
+    {
+        HandleNumberSelection(Command.Production);
+    }
+
+    private void HandleUnitInput()
+    {
         if (IsPressed(Key.A))
-        {
-            cmd = Command.Attack;
-            ProcessCommand(cmd);
-        }
+            ProcessCommand(Command.Attack);
 
         if (IsPressed(Key.M))
-        {
-            cmd = Command.Move;
-            ProcessCommand(cmd);
-        }
-
-        // Back
-        if (IsPressed(Key.B))
-        {
-            cmd = Command.Back;
-            ProcessCommand(cmd);
-        }
+            ProcessCommand(Command.Move);
     }
 
-    private static bool IsPressed(Key key)
+    private void HandleNumberSelection(Command command)
     {
-        KeyControl keyControl = Keyboard.current[key];
-        return keyControl != null && keyControl.wasPressedThisFrame;
+        if (IsPressed(Key.Digit1))
+        {
+            SelectUnitNameFromProductList(0);
+            ProcessCommand(command);
+        }
+
+        if (IsPressed(Key.Digit2))
+        {
+            SelectUnitNameFromProductList(1);
+            ProcessCommand(command);
+        }
     }
 
-    void NextTurn()
+    private void SelectUnitNameFromProductList(int index)
+    {
+        if (production == null)
+        {
+            Log("ProductionManager 참조가 없습니다.");
+            selectedUnitName = null;
+            return;
+        }
+
+        if (production.productList.Count <= index)
+        {
+            Log("해당 번호 유닛이 리스트에 없습니다.");
+            selectedUnitName = null;
+            return;
+        }
+
+        selectedUnitName = production.productList[index].unitName;
+    }
+
+    private void ProcessCommand(Command command)
+    {
+        if (command == Command.Back)
+        {
+            TryBack();
+            return;
+        }
+
+        switch (state)
+        {
+            case GameState.Title: HandleTitle(command); break;
+            case GameState.InGame: HandleInGame(command); break;
+            case GameState.City: HandleCity(command); break;
+            case GameState.Unit: HandleUnit(command); break;
+            case GameState.Buy: HandleBuy(command); break;
+            case GameState.Production: HandleProduction(command); break;
+        }
+    }
+
+    private void HandleTitle(Command command)
+    {
+        if (command == Command.Start)
+        {
+            ChangeState(GameState.InGame, "게임을 시작합니다.");
+            turnManager?.StartTurnCycle();
+        }
+        else if (command == Command.Quit)
+        {
+            Log("[Title] 게임 종료");
+        }
+    }
+
+    private void HandleInGame(Command command)
+    {
+        if (command == Command.NextTurn)
+        {
+            NextTurn();
+        }
+        else if (command == Command.GoCity)
+        {
+            ChangeState(GameState.City, "도시를 관리합니다.");
+            production?.PrintUnitList();
+        }
+        else if (command == Command.GoUnit)
+        {
+            ChangeState(GameState.Unit, "유닛을 관리합니다.");
+        }
+    }
+
+    private void HandleCity(Command command)
+    {
+        if (command == Command.GoBuy)
+            ChangeState(GameState.Buy, "유닛을 구입합니다.");
+
+        if (command == Command.GoProduction)
+            ChangeState(GameState.Production, "유닛을 생산합니다.");
+    }
+
+    private void HandleBuy(Command command)
+    {
+        if (production == null)
+        {
+            Log("ProductionManager 참조가 없습니다.");
+            return;
+        }
+
+        if (command == Command.Buy)
+        {
+            if (string.IsNullOrEmpty(selectedUnitName))
+            {
+                Log("구매할 유닛을 먼저 선택하세요.");
+                return;
+            }
+
+            BuyResult result = production.Buy(selectedUnitName);
+            Log(result.Message);
+            selectedUnitName = null;
+        }
+
+        if (command == Command.Undo)
+        {
+            UndoResult result = production.Undo();
+            Log(result.Message);
+        }
+    }
+
+    private void HandleProduction(Command command)
+    {
+        if (production == null)
+        {
+            Log("ProductionManager 참조가 없습니다.");
+            return;
+        }
+
+        if (command == Command.Production)
+        {
+            if (string.IsNullOrEmpty(selectedUnitName))
+            {
+                Log("생산할 유닛을 먼저 선택하세요.");
+                return;
+            }
+
+            ProductData data = production.Production(selectedUnitName);
+            if (production.watingList.Count > 0)
+                turnCost = production.watingList.Peek().Price;
+
+            Log(data.Message);
+            selectedUnitName = null;
+        }
+    }
+
+    private void HandleUnit(Command command)
+    {
+        if (command == Command.Attack)
+            Log("유닛공격");
+        else if (command == Command.Move)
+            Log("유닛이동");
+    }
+
+    private void NextTurn()
     {
         if (turnManager == null)
         {
@@ -190,158 +343,32 @@ public class StateMachine : MonoBehaviour
         Log(result.Message);
     }
 
-    private void HandleNumberSelection(int index)
+    private void TryBack()
     {
-        if (production == null)
-        {
-            Log("ProductionManager 참조가 없습니다.");
-            return;
-        }
-
-        if (production.productList.Count <= index)
-        {
-            Log("해당 번호 유닛이 리스트에 없습니다.");
-            return;
-        }
-
-        uname = production.productList[index].unitName;
-
-        if (state == GameState.Buy)
-            cmd = Command.Buy;
-        else if (state == GameState.Production)
-            cmd = Command.Production;
-        else
-            return;
-
-        ProcessCommand(cmd);
-    }
-
-    void ProcessCommand(Command cmd)
-    {
-        if (cmd == Command.Back)
-        {
-            TryBack();
-            return;
-        }
-
         switch (state)
         {
-            case GameState.Title: HandleTitle(cmd); break;
-            case GameState.InGame: HandleInGame(cmd); break;
-            case GameState.City: HandleCity(cmd); break;
-            case GameState.Unit: HandleUnit(cmd); break;
-            case GameState.Buy: HandleBuy(cmd); break;
-            case GameState.Production: HandleProduction(cmd); break;
+            case GameState.InGame:
+                ChangeState(GameState.Title, "타이틀로 돌아갑니다.");
+                break;
+            case GameState.City:
+                ChangeState(GameState.InGame, "도시 관리를 종료합니다.");
+                break;
+            case GameState.Unit:
+                ChangeState(GameState.InGame, "유닛 관리를 종료합니다.");
+                break;
+            case GameState.Buy:
+                ChangeState(GameState.City, "유닛 구입을 종료합니다.");
+                break;
+            case GameState.Production:
+                ChangeState(GameState.City, "유닛 생산을 종료합니다.");
+                break;
         }
     }
 
-    void HandleTitle(Command cmd)
+    private void ChangeState(GameState next, string msg)
     {
-        if (cmd == Command.Start)
-        {
-            ChangeState(GameState.InGame, "게임을 시작합니다.");
-            if (turnManager != null)
-                turnManager.StartTurnCycle();
-        }
-        else if (cmd == Command.Quit)
-            Log("[Title] 게임 종료");
-    }
-
-    void HandleInGame(Command cmd)
-    {
-        if (cmd == Command.NextTurn)
-        {
-            NextTurn();
-        }
-        else if (cmd == Command.GoCity)
-        {
-            ChangeState(GameState.City, "도시를 관리합니다.");
-            if (production != null)
-                production.PrintUnitList();
-        }
-        else if (cmd == Command.GoUnit)
-        {
-            ChangeState(GameState.Unit, "유닛을 관리합니다.");
-        }
-    }
-
-    void HandleCity(Command cmd)
-    {
-        if (cmd == Command.GoBuy)
-            ChangeState(GameState.Buy, "유닛을 구입합니다.");
-
-        if (cmd == Command.GoProduction)
-            ChangeState(GameState.Production, "유닛을 생산합니다.");
-    }
-
-    void HandleBuy(Command cmd)
-    {
-        if (cmd == Command.Buy)
-        {
-            BuyResult result = production.Buy(uname);
-            Log(result.Message);
-            uname = null;
-        }
-
-        if (cmd == Command.Undo)
-        {
-            UndoResult result = production.Undo();
-            Log(result.Message);
-        }
-    }
-
-    void HandleProduction(Command cmd)
-    {
-        if (cmd == Command.Production)
-        {
-            ProductData data = production.Production(uname);
-            turnCost = production.watingList.Peek().Price;
-            Log(data.Message);
-            uname = null;
-        }
-    }
-
-    void HandleUnit(Command cmd)
-    {
-        if (cmd == Command.Attack)
-        {
-            Log("유닛공격");
-        }
-        else if (cmd == Command.Move)
-        {
-            Log("유닛이동");
-        }
-    }
-
-    void TryBack()
-    {
-        if (state == GameState.InGame)
-        {
-            ChangeState(GameState.Title, "타이틀로 돌아갑니다.");
-        }
-        else if (state == GameState.City)
-        {
-            ChangeState(GameState.InGame, "도시 관리를 종료합니다.");
-        }
-        else if (state == GameState.Unit)
-        {
-            ChangeState(GameState.InGame, "유닛 관리를 종료합니다.");
-        }
-        else if (state == GameState.Buy)
-        {
-            ChangeState(GameState.City, " 유닛 구입을 종료합니다.");
-        }
-        else if (state == GameState.Production)
-        {
-            ChangeState(GameState.City, " 유닛 생산을 종료합니다.");
-        }
-    }
-
-    void ChangeState(GameState next, string msg)
-    {
-        Log(msg);
         state = next;
-
+        Log(msg);
         PrintHelp();
     }
 
@@ -350,7 +377,7 @@ public class StateMachine : MonoBehaviour
         Log($"[StateMachine] 현재 턴: {turn}, 현재 팀: {team}");
     }
 
-    void PrintHelp()
+    private void PrintHelp()
     {
         if (state == GameState.Title)
         {
@@ -378,7 +405,13 @@ public class StateMachine : MonoBehaviour
         }
     }
 
-    void Log(string msg)
+    private static bool IsPressed(Key key)
+    {
+        KeyControl keyControl = Keyboard.current[key];
+        return keyControl != null && keyControl.wasPressedThisFrame;
+    }
+
+    private void Log(string msg)
     {
         logs.Add(msg);
         Debug.Log(msg);
