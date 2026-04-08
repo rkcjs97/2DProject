@@ -3,28 +3,118 @@ using UnityEngine;
 
 public class TurnManager : MonoBehaviour
 {
+    [Header("Turn State")]
     [SerializeField] private List<Unit> allUnits = new List<Unit>();
+    [SerializeField] private int currentTeamTurn = 0;
 
-    public int turnCount = 1;
+    [Header("References")]
+    [SerializeField] private UnitSelectionManager unitSelectionManager;
 
-    private void Init(List<Unit> units)
+    public int turnCount { get; private set; } = 1;
+    public int CurrentTeamTurn => currentTeamTurn;
+
+    private void Awake()
     {
-        allUnits = units;
+        if (unitSelectionManager == null)
+            unitSelectionManager = FindObjectOfType<UnitSelectionManager>();
+
+        RefreshUnitList();
+    }
+
+    private void Start()
+    {
+        StartTurnCycle();
     }
 
     public void StartTurnCycle()
     {
-        
+        ResetCurrentTeamUnits();
+        Log($"게임 시작 - {turnCount}턴 / 팀 {currentTeamTurn} 행동 시작");
     }
-    
+
     public void NextTurn()
     {
-        turnCount++;
-        Log($"턴을 시작했습니다. {turnCount}턴");
+        RefreshUnitList();
+        RemoveNullUnits();
+
+        int previousTeam = currentTeamTurn;
+        currentTeamTurn = GetNextTeamId(currentTeamTurn);
+
+        if (currentTeamTurn <= previousTeam)
+            turnCount++;
+
+        ResetCurrentTeamUnits();
+        ClearInvalidSelection();
+
+        Log($"턴 진행 -> {turnCount}턴 / 팀 {currentTeamTurn} 행동 시작");
     }
-    
-    
-    void Log(string msg)
+
+    public void RefreshUnitList()
+    {
+        allUnits = new List<Unit>(FindObjectsOfType<Unit>());
+        RemoveNullUnits();
+    }
+
+    private int GetNextTeamId(int fromTeam)
+    {
+        HashSet<int> teams = new HashSet<int>();
+        foreach (Unit unit in allUnits)
+        {
+            if (unit != null)
+                teams.Add(unit.TeamId);
+        }
+
+        if (teams.Count == 0)
+            return 0;
+
+        int candidate = fromTeam + 1;
+        for (int i = 0; i < 100; i++)
+        {
+            if (teams.Contains(candidate))
+                return candidate;
+
+            candidate++;
+            if (candidate > 32)
+                candidate = 0;
+        }
+
+        foreach (int team in teams)
+            return team;
+
+        return 0;
+    }
+
+    private void ResetCurrentTeamUnits()
+    {
+        foreach (Unit unit in allUnits)
+        {
+            if (unit == null)
+                continue;
+
+            if (unit.TeamId == currentTeamTurn)
+                unit.ResetMove();
+        }
+    }
+
+    private void ClearInvalidSelection()
+    {
+        if (unitSelectionManager == null)
+            return;
+
+        Unit selected = unitSelectionManager.SelectedUnit;
+        if (selected == null)
+            return;
+
+        if (selected.TeamId != currentTeamTurn)
+            unitSelectionManager.DeselectUnit();
+    }
+
+    private void RemoveNullUnits()
+    {
+        allUnits.RemoveAll(unit => unit == null);
+    }
+
+    private void Log(string msg)
     {
         Debug.Log(msg);
     }
