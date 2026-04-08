@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -12,6 +13,8 @@ public class TurnManager : MonoBehaviour
 
     public int turnCount { get; private set; } = 1;
     public int CurrentTeamTurn => currentTeamTurn;
+
+    public event Action<int, int> OnTurnChanged;
 
     private void Awake()
     {
@@ -28,8 +31,11 @@ public class TurnManager : MonoBehaviour
 
     public void StartTurnCycle()
     {
+        RefreshUnitList();
         ResetCurrentTeamUnits();
+
         Log($"게임 시작 - {turnCount}턴 / 팀 {currentTeamTurn} 행동 시작");
+        OnTurnChanged?.Invoke(turnCount, currentTeamTurn);
     }
 
     public void NextTurn()
@@ -47,6 +53,7 @@ public class TurnManager : MonoBehaviour
         ClearInvalidSelection();
 
         Log($"턴 진행 -> {turnCount}턴 / 팀 {currentTeamTurn} 행동 시작");
+        OnTurnChanged?.Invoke(turnCount, currentTeamTurn);
     }
 
     public void RefreshUnitList()
