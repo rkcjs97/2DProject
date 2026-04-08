@@ -52,6 +52,9 @@ public class StateMachine : MonoBehaviour
     private int turnCost;
     private string selectedUnitName;
 
+    private GameFlowService gameFlowService;
+    private CommandContext commandContext;
+
     private void Awake()
     {
         if (turnManager == null)
@@ -59,6 +62,9 @@ public class StateMachine : MonoBehaviour
 
         if (production == null)
             production = FindObjectOfType<ProductionManager>();
+
+        gameFlowService = new GameFlowService();
+        commandContext = new CommandContext(turnManager, new CombatService());
     }
 
     private void OnEnable()
@@ -333,7 +339,13 @@ public class StateMachine : MonoBehaviour
         }
 
         Log($"턴을 종료합니다. {turnManager.turnCount}턴");
-        turnManager.NextTurn();
+
+        CommandResult turnResult = gameFlowService.Execute(new EndTurnCommand(), commandContext);
+        if (!turnResult.Success)
+        {
+            Log(turnResult.Message);
+            return;
+        }
 
         if (production == null)
             return;

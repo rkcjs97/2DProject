@@ -13,6 +13,7 @@ public class TurnManager : MonoBehaviour
 
     public int turnCount { get; private set; } = 1;
     public int CurrentTeamTurn => currentTeamTurn;
+    public TurnPhase CurrentPhase { get; private set; } = TurnPhase.Movement;
 
     public event Action<int, int> OnTurnChanged;
 
@@ -34,6 +35,7 @@ public class TurnManager : MonoBehaviour
         RefreshUnitList();
         ResetCurrentTeamUnits();
 
+        CurrentPhase = TurnPhase.Movement;
         Log($"게임 시작 - {turnCount}턴 / 팀 {currentTeamTurn} 행동 시작");
         OnTurnChanged?.Invoke(turnCount, currentTeamTurn);
     }
@@ -52,6 +54,7 @@ public class TurnManager : MonoBehaviour
         ResetCurrentTeamUnits();
         ClearInvalidSelection();
 
+        CurrentPhase = TurnPhase.Movement;
         Log($"턴 진행 -> {turnCount}턴 / 팀 {currentTeamTurn} 행동 시작");
         OnTurnChanged?.Invoke(turnCount, currentTeamTurn);
     }
@@ -60,6 +63,13 @@ public class TurnManager : MonoBehaviour
     {
         allUnits = new List<Unit>(FindObjectsOfType<Unit>());
         RemoveNullUnits();
+    }
+
+
+    public void SetPhase(TurnPhase phase)
+    {
+        CurrentPhase = phase;
+        Log($"턴 페이즈 변경 -> {CurrentPhase}");
     }
 
     private int GetNextTeamId(int fromTeam)
