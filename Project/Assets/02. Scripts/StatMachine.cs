@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.Controls;
 
 public class StateMachine : MonoBehaviour
 {
@@ -41,7 +43,7 @@ public class StateMachine : MonoBehaviour
     [SerializeField] public TurnManager turnManager;
 
     [Header("Space로 다음턴")]
-    [SerializeField] private KeyCode nextTurnKey = KeyCode.Space;
+    [SerializeField] private Key nextTurnKey = Key.Space;
     [SerializeField] private ProductionManager production;
 
     private GameState state = GameState.Title;
@@ -80,88 +82,93 @@ public class StateMachine : MonoBehaviour
 
     void Update()
     {
+        if (Keyboard.current == null)
+            return;
+
         // Title
-        if (Input.GetKeyDown(KeyCode.S))
+        if (IsPressed(Key.S))
         {
             cmd = Command.Start;
             ProcessCommand(cmd);
         }
 
-        if (Input.GetKeyDown(KeyCode.Q))
+        if (IsPressed(Key.Q))
         {
             cmd = Command.Quit;
             ProcessCommand(cmd);
         }
 
         // InGame
-        if (Input.GetKeyDown(nextTurnKey))
+        if (IsPressed(nextTurnKey))
         {
             cmd = Command.NextTurn;
             ProcessCommand(cmd);
         }
 
-        if (Input.GetKeyDown(KeyCode.I))
+        if (IsPressed(Key.I))
         {
             cmd = Command.GoCity;
             ProcessCommand(cmd);
         }
 
-        if (Input.GetKeyDown(KeyCode.U))
+        if (IsPressed(Key.U))
         {
             cmd = Command.GoUnit;
             ProcessCommand(cmd);
         }
 
         // City
-        if (Input.GetKeyDown(KeyCode.G))
+        if (IsPressed(Key.G))
         {
             cmd = Command.GoBuy;
             ProcessCommand(cmd);
         }
 
-        if (Input.GetKeyDown(KeyCode.P))
+        if (IsPressed(Key.P))
         {
             cmd = Command.GoProduction;
             ProcessCommand(cmd);
         }
 
         // Buy / Production number key routing
-        if (Input.GetKeyDown(KeyCode.Alpha1))
-        {
+        if (IsPressed(Key.Digit1))
             HandleNumberSelection(0);
-        }
 
-        if (Input.GetKeyDown(KeyCode.Alpha2))
-        {
+        if (IsPressed(Key.Digit2))
             HandleNumberSelection(1);
-        }
 
         // Undo
-        if (Input.GetKeyDown(KeyCode.Z))
+        if (IsPressed(Key.Z))
         {
             cmd = Command.Undo;
             ProcessCommand(cmd);
         }
 
         // Unit
-        if (Input.GetKeyDown(KeyCode.A))
+        if (IsPressed(Key.A))
         {
             cmd = Command.Attack;
             ProcessCommand(cmd);
         }
 
-        if (Input.GetKeyDown(KeyCode.M))
+        if (IsPressed(Key.M))
         {
             cmd = Command.Move;
             ProcessCommand(cmd);
         }
 
         // Back
-        if (Input.GetKeyDown(KeyCode.B))
+        if (IsPressed(Key.B))
         {
             cmd = Command.Back;
             ProcessCommand(cmd);
         }
+    }
+
+    private static bool IsPressed(Key key)
+    {
+        KeyControl keyControl = Keyboard.current[key];
+        return keyControl != null && keyControl.wasPressedThisFrame;
     }
 
     void NextTurn()
